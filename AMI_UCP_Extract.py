@@ -300,7 +300,7 @@ def uaf_extract(buffer, extract_path, mod_info, padding=0, checksum=False, nal_d
         printer(f'Note: Detected new AMI UCP Module {uaf_tag} ({nal_dict[uaf_tag][1]}) in @NAL!', padding + 4, pause=True)
     
     # Generate @UAF|@HPU Module File name, depending on whether decompression will be required
-    uaf_sname = safe_name(uaf_name + ('.temp' if is_comp else uaf_fext))
+    uaf_sname = safe_name(uaf_name + uaf_fext)
     if uaf_tag in nal_dict:
         uaf_npath = safe_path(extract_path, nal_dict[uaf_tag][0])
         make_dirs(uaf_npath, exist_ok=True)
@@ -350,15 +350,14 @@ def uaf_extract(buffer, extract_path, mod_info, padding=0, checksum=False, nal_d
     
     # @UAF|@HPU Module EFI/Tiano Decompression
     if is_comp and is_efi_compressed(uaf_data_raw, False):
-        dec_fname = uaf_fname.replace('.temp', uaf_fext) # Decompressed @UAF|@HPU Module file path
-        
-        if efi_decompress(uaf_fname, dec_fname, padding + 4) == 0:
-            with open(dec_fname, 'rb') as dec:
-                uaf_data_raw = dec.read() # Read back the @UAF|@HPU Module decompressed Raw data
-            
-            os.remove(uaf_fname) # Successful decompression, delete compressed @UAF|@HPU Module file
-            
-            uaf_fname = dec_fname # Adjust @UAF|@HPU Module file path to the decompressed one
+        decompressed_data = efi_decompress(uaf_data_raw, padding + 4)
+        if len(decompressed_data):
+            uaf_data_raw = decompressed_data # Save @UAF|@HPU Module decompressed Raw data
+            with open(uaf_fname, 'wb') as f:
+                f.write(uaf_data_raw)
+        else:
+            with open(f'{uaf_fname}.temp', 'wb') as f: # Create .temp file with compressed data
+                f.write(uaf_data_raw)
     
     # Process and Print known text only @UAF|@HPU Modules (after EFI/Tiano Decompression)
     if uaf_tag in UAF_TAG_DICT and UAF_TAG_DICT[uaf_tag][2] == 'Text':

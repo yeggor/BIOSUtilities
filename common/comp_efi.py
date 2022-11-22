@@ -5,11 +5,10 @@
 Copyright (C) 2022 Plato Mavropoulos
 """
 
-import os
-import subprocess
+from uefi_firmware import efi_compressor
 
-from common.path_ops import project_root, safe_path
-from common.system import get_os_ver, printer
+from common.system import printer
+
 
 def get_compress_sizes(data):    
     size_compress = int.from_bytes(data[0x0:0x4], 'little')
@@ -29,29 +28,22 @@ def is_efi_compressed(data, strict=True):
     
     return check_diff and check_size
 
-# Get TianoCompress path
-def get_tiano_path():
-    exec_name = f'TianoCompress{".exe" if get_os_ver()[1] else ""}'
-    
-    return safe_path(project_root(), ['external',exec_name])
-
 # EFI/Tiano Decompression via TianoCompress
-def efi_decompress(in_path, out_path, padding=0, silent=False, comp_type='--uefi'):
+def efi_decompress(compressed_buffer, padding=0, silent=False):
+    if len(compressed_buffer) < 8:
+        raise Exception('EFI_DECOMPRESS_ERROR')
+
+    _, size_orig = get_compress_sizes(compressed_buffer)
     try:
-        subprocess.run([get_tiano_path(), '-d', in_path, '-o', out_path, '-q', comp_type], check=True, stdout=subprocess.DEVNULL)
-        
-        with open(in_path, 'rb') as file:
-            _,size_orig = get_compress_sizes(file.read())
-        
-        if os.path.getsize(out_path) != size_orig:
+        decompressed_data = efi_compressor.EfiDecompress(compressed_buffer, len(compressed_buffer))
+        if len(decompressed_data) != size_orig:
             raise Exception('EFI_DECOMPRESS_ERROR')
     except Exception:
         if not silent:
-            printer(f'Error: TianoCompress could not extract file {in_path}!', padding)
-        
-        return 1
-    
+            printer(f'Error: efi_compressor.EfiDecompress could not decompress file content!', padding)
+        return bytes()
+
     if not silent:
-        printer('Succesfull EFI decompression via TianoCompress!', padding)
-    
-    return 0
+        printer('Succesfull EFI decompression via efi_compressor.EfiDecompress!', padding)
+
+    return decompressed_data

@@ -33,12 +33,18 @@ def is_fujitsu_upc(in_file):
 # Parse & Extract Fujitsu UPC image
 def fujitsu_upc_extract(input_file, extract_path, padding=0):
     make_dirs(extract_path, delete=True)
-    
+
     image_base = os.path.basename(input_file)
     image_name = image_base[:-4] if image_base.upper().endswith('.UPC') else image_base
     image_path = os.path.join(extract_path, f'{image_name}.bin')
-    
-    return efi_decompress(input_file, image_path, padding)
-    
+
+    with open(input_file, 'rb') as f:
+        compressed_buffer = f.read()
+
+    decompressed_data = efi_decompress(compressed_buffer, padding)
+    if len(decompressed_data):
+        with open(image_path, 'wb') as f:
+            f.write(decompressed_data)
+
 if __name__ == '__main__':
     BIOSUtility(TITLE, is_fujitsu_upc, fujitsu_upc_extract).run_utility()

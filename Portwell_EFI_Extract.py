@@ -125,12 +125,10 @@ def parse_efi_files(extract_path, efi_files, padding):
         
         # Attempt to detect EFI compression & decompress when applicable
         if is_efi_compressed(file_data):
-            comp_fname = file_path + '.temp' # Store temporary compressed file name
-            
-            os.replace(file_path, comp_fname) # Rename initial/compressed file
-            
-            if efi_decompress(comp_fname, file_path, padding + 8) == 0:
-                os.remove(comp_fname) # Successful decompression, delete compressed file
+            decompressed_data = efi_decompress(file_data, padding + 8)
+            if len(decompressed_data):
+                with open(file_path, 'wb') as out_file:
+                    out_file.write(decompressed_data) # Overwrite a file with decompressed data
 
 if __name__ == '__main__':
     BIOSUtility(TITLE, is_portwell_efi, portwell_efi_extract).run_utility()
